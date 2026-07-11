@@ -162,7 +162,7 @@ export function useEngine(fen: string, enabled: boolean): EngineState {
       linesRef.current = new Map();
       runningRef.current = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [enabled]);
 
   useEffect(() => {
@@ -193,7 +193,7 @@ export function useEngine(fen: string, enabled: boolean): EngineState {
     }
 
     return () => worker.removeEventListener("message", onMessage);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [fen, enabled]);
 
   return enabled ? state : IDLE_STATE;
