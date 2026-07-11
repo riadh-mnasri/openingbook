@@ -54,6 +54,15 @@ npm run dev     # http://localhost:3344
 npm test        # unit tests
 ```
 
+Opening names (ECO) work out of the box from an embedded dataset
+([lichess-org/chess-openings](https://github.com/lichess-org/chess-openings),
+CC0; regenerate with `node scripts/build-eco.mjs`). The theory statistics
+panel requires a free lichess personal access token (the lichess explorer
+API requires authentication): create one at
+[lichess.org/account/oauth/token](https://lichess.org/account/oauth/token)
+(no scopes needed) and set it as `LICHESS_API_TOKEN` in `.env.local`. The
+token stays server-side; explorer calls are proxied and cached.
+
 ## Français
 
 ### Ce que fait l'application

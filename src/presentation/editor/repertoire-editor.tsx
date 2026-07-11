@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { PositionNote, Side } from "@/domain/repertoire/repertoire";
-import type { MoveEdge } from "@/domain/repertoire/repertoire-graph";
+import { ROOT_FEN, type MoveEdge } from "@/domain/repertoire/repertoire-graph";
+import { openingNameAlongLine } from "@/domain/repertoire/eco";
 import { useRepertoireEditor } from "./use-repertoire-editor";
 import { useEngine } from "./use-engine";
 import { BoardPanel } from "./board-panel";
@@ -40,9 +41,12 @@ export function RepertoireEditor({
 }) {
   const editor = useRepertoireEditor(repertoire.id, initialEdges, initialNotes);
   const [tab, setTab] = useState<Tab>("engine");
-  const [openingName, setOpeningName] = useState<string | null>(null);
   const [engineOn, setEngineOn] = useState(true);
   const engine = useEngine(editor.currentFen, engineOn);
+  const openingName = useMemo(
+    () => openingNameAlongLine([ROOT_FEN, ...editor.path.map((e) => e.childFen)]),
+    [editor.path],
+  );
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
@@ -168,11 +172,7 @@ export function RepertoireEditor({
                 />
               ) : null}
               {tab === "explorer" ? (
-                <ExplorerPanel
-                  fen={editor.currentFen}
-                  onPlayMove={editor.playMove}
-                  onOpeningName={setOpeningName}
-                />
+                <ExplorerPanel fen={editor.currentFen} onPlayMove={editor.playMove} />
               ) : null}
               {tab === "notes" ? (
                 <NotesPanel
