@@ -57,6 +57,8 @@ export function BoardPanel({
             boardOrientation: side,
             darkSquareStyle: { backgroundColor: "var(--board-dark)" },
             lightSquareStyle: { backgroundColor: "var(--board-light)" },
+            darkSquareNotationStyle: { color: "var(--board-light)", fontSize: "11px" },
+            lightSquareNotationStyle: { color: "var(--board-dark)", fontSize: "11px" },
             dropSquareStyle: { boxShadow: "inset 0 0 0 3px var(--accent-strong)" },
             animationDurationInMs: 150,
             onPieceDrop: ({ piece, sourceSquare, targetSquare }) => {

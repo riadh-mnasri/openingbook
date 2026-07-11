@@ -76,27 +76,21 @@ export function useEngine(fen: string, enabled: boolean): EngineState {
   const workerRef = useRef<Worker | null>(null);
   const linesRef = useRef<Map<number, EngineLine>>(new Map());
   const runningRef = useRef(false);
-  // UCI handshake state: nothing may be sent before uciok/readyok, and a
-  // search launched before readiness is queued in pendingFenRef.
+  // Strict UCI serialization: this single-threaded build crashes if a
+  // new `position`/`go` is sent while a search is in flight. Only one
+  // search runs at a time; changing position sends `stop`, and the next
+  // search starts when the interrupted search's `bestmove` arrives.
   const readyRef = useRef(false);
-  const pendingFenRef = useRef<string | null>(null);
-  // Number of bestmove messages to swallow: one per interrupted search,
-  // so the previous search ending never marks the new one as finished.
-  const staleBestmovesRef = useRef(0);
-  const inFlightRef = useRef(false);
+  const searchingRef = useRef(false);
+  const searchedFenRef = useRef<string | null>(null);
+  const desiredFenRef = useRef(fen);
+  // True when the in-flight search got a `stop`: its bestmove must chain
+  // a fresh search even if the desired position matches (the user may
+  // have navigated away and back before the bestmove arrived).
+  const stopRequestedRef = useRef(false);
+  // Asks the worker to converge on desiredFen; safe to call anytime.
+  const kickRef = useRef<() => void>(() => {});
   const [state, setState] = useState<EngineState>(IDLE_STATE);
-
-  const startSearch = (worker: Worker, searchFen: string) => {
-    if (inFlightRef.current) {
-      worker.postMessage("stop");
-      staleBestmovesRef.current += 1;
-    }
-    linesRef.current = new Map();
-    runningRef.current = true;
-    inFlightRef.current = true;
-    worker.postMessage(`position fen ${toFullFen(searchFen)}`);
-    worker.postMessage(`go depth ${MAX_DEPTH}`);
-  };
 
   // The engine floods `info` messages: the handlers below only fill refs,
   // and this single slow interval is the one place state is written, so
@@ -135,65 +129,75 @@ export function useEngine(fen: string, enabled: boolean): EngineState {
     const worker = new Worker(ENGINE_URL);
     workerRef.current = worker;
 
-    const onHandshake = (event: MessageEvent) => {
-      const text = String(event.data);
-      if (text === "uciok") {
-        worker.postMessage(`setoption name MultiPV value ${MULTI_PV}`);
-        worker.postMessage("isready");
-      } else if (text === "readyok") {
-        readyRef.current = true;
-        if (pendingFenRef.current !== null) {
-          startSearch(worker, pendingFenRef.current);
-          pendingFenRef.current = null;
+    const startSearch = () => {
+      const searchFen = desiredFenRef.current;
+      searchingRef.current = true;
+      searchedFenRef.current = searchFen;
+      worker.postMessage(`position fen ${toFullFen(searchFen)}`);
+      worker.postMessage(`go depth ${MAX_DEPTH}`);
+    };
+
+    kickRef.current = () => {
+      if (!readyRef.current) return;
+      if (searchingRef.current) {
+        // The pending bestmove will chain the next search.
+        if (searchedFenRef.current !== desiredFenRef.current && !stopRequestedRef.current) {
+          stopRequestedRef.current = true;
+          worker.postMessage("stop");
         }
+      } else {
+        startSearch();
       }
     };
-    worker.addEventListener("message", onHandshake);
-    worker.postMessage("uci");
 
-    return () => {
-      worker.removeEventListener("message", onHandshake);
-      worker.terminate();
-      workerRef.current = null;
-      readyRef.current = false;
-      pendingFenRef.current = null;
-      staleBestmovesRef.current = 0;
-      inFlightRef.current = false;
-      linesRef.current = new Map();
-      runningRef.current = false;
-    };
-     
-  }, [enabled]);
-
-  useEffect(() => {
-    const worker = workerRef.current;
-    if (!enabled || !worker) return;
-
-    const whiteToMove = fen.split(" ")[1] === "w";
     const onMessage = (event: MessageEvent) => {
       const text = String(event.data);
       if (text.startsWith("info ") && text.includes(" pv ")) {
-        const parsed = parseInfo(text, whiteToMove, fen);
+        const searchedFen = searchedFenRef.current;
+        if (searchedFen === null || searchedFen !== desiredFenRef.current) return;
+        const whiteToMove = searchedFen.split(" ")[1] === "w";
+        const parsed = parseInfo(text, whiteToMove, searchedFen);
         if (parsed) linesRef.current.set(parsed.multipv, parsed);
       } else if (text.startsWith("bestmove")) {
-        if (staleBestmovesRef.current > 0) {
-          staleBestmovesRef.current -= 1;
+        searchingRef.current = false;
+        const wasStopped = stopRequestedRef.current;
+        stopRequestedRef.current = false;
+        if (searchedFenRef.current !== desiredFenRef.current || wasStopped) {
+          startSearch();
         } else {
           runningRef.current = false;
-          inFlightRef.current = false;
         }
+      } else if (text === "uciok") {
+        worker.postMessage(`setoption name MultiPV value ${MULTI_PV}`);
+        worker.postMessage("isready");
+      } else if (text === "readyok" && !readyRef.current) {
+        readyRef.current = true;
+        kickRef.current();
       }
     };
     worker.addEventListener("message", onMessage);
+    worker.postMessage("uci");
 
-    if (readyRef.current) {
-      startSearch(worker, fen);
-    } else {
-      pendingFenRef.current = fen;
-    }
+    return () => {
+      worker.removeEventListener("message", onMessage);
+      worker.terminate();
+      workerRef.current = null;
+      readyRef.current = false;
+      searchingRef.current = false;
+      searchedFenRef.current = null;
+      stopRequestedRef.current = false;
+      kickRef.current = () => {};
+      linesRef.current = new Map();
+      runningRef.current = false;
+    };
+  }, [enabled]);
 
-    return () => worker.removeEventListener("message", onMessage);
-     
+  useEffect(() => {
+    if (!enabled) return;
+    desiredFenRef.current = fen;
+    linesRef.current = new Map();
+    runningRef.current = true;
+    kickRef.current();
   }, [fen, enabled]);
 
   return enabled ? state : IDLE_STATE;
