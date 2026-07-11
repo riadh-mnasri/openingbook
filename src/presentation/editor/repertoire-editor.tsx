@@ -5,7 +5,9 @@ import { useEffect, useState } from "react";
 import type { PositionNote, Side } from "@/domain/repertoire/repertoire";
 import type { MoveEdge } from "@/domain/repertoire/repertoire-graph";
 import { useRepertoireEditor } from "./use-repertoire-editor";
+import { useEngine } from "./use-engine";
 import { BoardPanel } from "./board-panel";
+import { EvalBar } from "./eval-bar";
 import { MoveTree } from "./move-tree";
 import { MoveToolbar } from "./move-toolbar";
 import { NotesPanel } from "./notes-panel";
@@ -39,6 +41,8 @@ export function RepertoireEditor({
   const editor = useRepertoireEditor(repertoire.id, initialEdges, initialNotes);
   const [tab, setTab] = useState<Tab>("engine");
   const [openingName, setOpeningName] = useState<string | null>(null);
+  const [engineOn, setEngineOn] = useState(true);
+  const engine = useEngine(editor.currentFen, engineOn);
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
@@ -104,6 +108,9 @@ export function RepertoireEditor({
           <BoardPanel
             fen={editor.currentFen}
             side={repertoire.side}
+            evalBar={
+              engineOn ? <EvalBar evaluation={engine.evaluation} side={repertoire.side} /> : null
+            }
             onMove={editor.playMove}
             onBack={editor.goBack}
             onForward={editor.goForward}
@@ -152,7 +159,14 @@ export function RepertoireEditor({
               ))}
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto">
-              {tab === "engine" ? <EnginePanel fen={editor.currentFen} /> : null}
+              {tab === "engine" ? (
+                <EnginePanel
+                  engine={engine}
+                  enabled={engineOn}
+                  onToggle={setEngineOn}
+                  onPlayMove={editor.playMove}
+                />
+              ) : null}
               {tab === "explorer" ? (
                 <ExplorerPanel
                   fen={editor.currentFen}

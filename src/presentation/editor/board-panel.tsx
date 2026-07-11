@@ -7,6 +7,7 @@ import type { Side } from "@/domain/repertoire/repertoire";
 interface BoardPanelProps {
   fen: string;
   side: Side;
+  evalBar?: React.ReactNode;
   onMove: (uci: string) => boolean;
   onBack: () => void;
   onForward: () => void;
@@ -35,11 +36,22 @@ function NavButton({
   );
 }
 
-export function BoardPanel({ fen, side, onMove, onBack, onForward, onStart, onEnd }: BoardPanelProps) {
+export function BoardPanel({
+  fen,
+  side,
+  evalBar,
+  onMove,
+  onBack,
+  onForward,
+  onStart,
+  onEnd,
+}: BoardPanelProps) {
   return (
-    <div className="mx-auto w-full max-w-[600px]">
-      <div className="overflow-hidden rounded-lg shadow-md">
-        <Chessboard
+    <div className="mx-auto w-full max-w-[640px]">
+      <div className="flex items-stretch gap-2">
+        {evalBar}
+        <div className="min-w-0 flex-1 overflow-hidden rounded-lg shadow-md">
+          <Chessboard
           options={{
             position: toFullFen(fen),
             boardOrientation: side,
@@ -55,7 +67,8 @@ export function BoardPanel({ fen, side, onMove, onBack, onForward, onStart, onEn
               return onMove(`${sourceSquare}${targetSquare}${promotion}`);
             },
           }}
-        />
+          />
+        </div>
       </div>
       <div className="mt-3 flex gap-2">
         <NavButton label="⏮" title="Position initiale (Début)" onClick={onStart} />
