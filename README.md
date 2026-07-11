@@ -5,6 +5,7 @@ Copyright © Riadh MNASRI. All rights reserved.
 A personal chess opening repertoire manager, in the spirit of ChessBase:
 store your openings with every variation, annotate them, and study them on
 an interactive board with Stockfish analysis and live opening theory.
+Live at [openingbook-tau.vercel.app](https://openingbook-tau.vercel.app).
 
 *La version française suit plus bas.*
 
