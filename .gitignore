@@ -20,6 +20,9 @@
 # production
 /build
 
+# local json data store (dev without DATABASE_URL)
+/.data
+
 # misc
 .DS_Store
 *.pem
