@@ -4,9 +4,16 @@ import { Chessboard } from "react-chessboard";
 import { toFullFen } from "@/domain/repertoire/fen";
 import type { Side } from "@/domain/repertoire/repertoire";
 
+export interface BoardArrow {
+  startSquare: string;
+  endSquare: string;
+  color: string;
+}
+
 interface BoardPanelProps {
   fen: string;
   side: Side;
+  arrows: BoardArrow[];
   evalBar?: React.ReactNode;
   onMove: (uci: string) => boolean;
   onBack: () => void;
@@ -39,6 +46,7 @@ function NavButton({
 export function BoardPanel({
   fen,
   side,
+  arrows,
   evalBar,
   onMove,
   onBack,
@@ -59,6 +67,10 @@ export function BoardPanel({
             lightSquareStyle: { backgroundColor: "var(--board-light)" },
             darkSquareNotationStyle: { color: "var(--board-light)", fontSize: "11px" },
             lightSquareNotationStyle: { color: "var(--board-dark)", fontSize: "11px" },
+            arrows,
+            // Right-click drag still draws free arrows for analysis.
+            allowDrawingArrows: true,
+            clearArrowsOnPositionChange: true,
             dropSquareStyle: { boxShadow: "inset 0 0 0 3px var(--accent-strong)" },
             animationDurationInMs: 150,
             onPieceDrop: ({ piece, sourceSquare, targetSquare }) => {

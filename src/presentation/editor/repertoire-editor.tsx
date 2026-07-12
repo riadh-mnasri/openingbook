@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { PositionNote, Side } from "@/domain/repertoire/repertoire";
-import { ROOT_FEN, type MoveEdge } from "@/domain/repertoire/repertoire-graph";
+import { movesFrom, ROOT_FEN, type MoveEdge } from "@/domain/repertoire/repertoire-graph";
 import { openingNameAlongLine } from "@/domain/repertoire/eco";
+import type { BoardArrow } from "./board-panel";
 import { useRepertoireEditor } from "./use-repertoire-editor";
 import { useEngine } from "./use-engine";
 import { BoardPanel } from "./board-panel";
@@ -47,6 +48,37 @@ export function RepertoireEditor({
     () => openingNameAlongLine([ROOT_FEN, ...editor.path.map((e) => e.childFen)]),
     [editor.path],
   );
+  const [theoryMoves, setTheoryMoves] = useState<string[]>([]);
+  const handleTheoryMoves = useCallback((uciMoves: string[]) => setTheoryMoves(uciMoves), []);
+
+  // Arrows on the board: repertoire continuations always (green), plus
+  // the active tab's candidates: engine lines (amber) or theory moves
+  // (blue, opacity by popularity). One arrow per from/to pair, the
+  // repertoire color wins.
+  const arrows = useMemo<BoardArrow[]>(() => {
+    const result: BoardArrow[] = [];
+    const seen = new Set<string>();
+    const add = (uci: string, color: string) => {
+      const key = uci.slice(0, 4);
+      if (seen.has(key)) return;
+      seen.add(key);
+      result.push({ startSquare: uci.slice(0, 2), endSquare: uci.slice(2, 4), color });
+    };
+    for (const edge of movesFrom(editor.edges, editor.currentFen)) {
+      add(edge.uci, "rgba(93, 138, 78, 0.9)");
+    }
+    if (tab === "engine" && engineOn) {
+      engine.lines.forEach((line, i) => {
+        if (line.firstUci) add(line.firstUci, `rgba(196, 138, 62, ${0.85 - i * 0.25})`);
+      });
+    }
+    if (tab === "explorer") {
+      theoryMoves.slice(0, 4).forEach((uci, i) => {
+        add(uci, `rgba(74, 111, 165, ${0.85 - i * 0.17})`);
+      });
+    }
+    return result;
+  }, [editor.edges, editor.currentFen, tab, engineOn, engine.lines, theoryMoves]);
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
@@ -112,6 +144,7 @@ export function RepertoireEditor({
           <BoardPanel
             fen={editor.currentFen}
             side={repertoire.side}
+            arrows={arrows}
             evalBar={
               engineOn ? <EvalBar evaluation={engine.evaluation} side={repertoire.side} /> : null
             }
@@ -172,7 +205,11 @@ export function RepertoireEditor({
                 />
               ) : null}
               {tab === "explorer" ? (
-                <ExplorerPanel fen={editor.currentFen} onPlayMove={editor.playMove} />
+                <ExplorerPanel
+                  fen={editor.currentFen}
+                  onPlayMove={editor.playMove}
+                  onMoves={handleTheoryMoves}
+                />
               ) : null}
               {tab === "notes" ? (
                 <NotesPanel

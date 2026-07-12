@@ -47,9 +47,13 @@ type Status = "loading" | "ok" | "error" | "no-token" | "rate-limited";
 export function ExplorerPanel({
   fen,
   onPlayMove,
+  onMoves,
 }: {
   fen: string;
   onPlayMove: (uci: string) => boolean;
+  // Reports the theory moves of the current position (most played
+  // first) so the board can draw them as arrows.
+  onMoves: (uciMoves: string[]) => void;
 }) {
   const [source, setSource] = useState<Source>("masters");
   const [data, setData] = useState<ExplorerData | null>(null);
@@ -65,6 +69,7 @@ export function ExplorerPanel({
       if (cancelled) return;
       setData(result);
       setStatus("ok");
+      onMoves(result.moves.map((m) => m.uci));
     }
 
     if (cached) {
@@ -73,6 +78,7 @@ export function ExplorerPanel({
     }
 
     setStatus("loading");
+    onMoves([]);
     const timer = setTimeout(async () => {
       try {
         const response = await fetch(explorerUrl(source, fen));
@@ -109,7 +115,7 @@ export function ExplorerPanel({
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [fen, source]);
+  }, [fen, source, onMoves]);
 
   const total = data ? data.white + data.draws + data.black : 0;
 
