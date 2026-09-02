@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, Lora } from "next/font/google";
 import "./globals.css";
+import { AppFooter } from "@/presentation/components/app-footer";
 
 const inter = Inter({
   variable: "--font-body",
@@ -24,7 +25,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="fr" className={`${inter.variable} ${lora.variable} h-full antialiased`}>
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        {children}
+        <AppFooter />
+      </body>
     </html>
   );
 }
